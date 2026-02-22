@@ -388,7 +388,119 @@ def generate_html(songs: list[dict]) -> str:
       height: 100dvh;
     }}
 
-    #empty {{ flex: 1; }}
+    /* ── Left panel: add song ── */
+    #add-panel {{
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      padding: 1.5rem 1.25rem;
+      border-right: 1px solid #2a2a4a;
+    }}
+
+    #add-panel h2 {{
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4a4a6a;
+    }}
+
+    #add-url {{
+      width: 100%;
+      padding: 0.55rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #2a2a4a;
+      background: #1b1b2e;
+      color: #fffffe;
+      font-size: 0.85rem;
+      outline: none;
+    }}
+
+    #add-url:focus {{ border-color: #6246ea; }}
+
+    #add-url::placeholder {{ color: #3a3a5a; }}
+
+    #btn-add {{
+      background: #6246ea;
+      color: #fffffe;
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 700;
+      transition: filter 0.15s, transform 0.1s;
+    }}
+
+    #btn-add:hover  {{ filter: brightness(1.15); }}
+    #btn-add:active {{ transform: scale(0.97); }}
+
+    #add-form {{
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }}
+
+    #add-status {{
+      font-size: 0.78rem;
+      min-height: 1.2em;
+      text-align: center;
+    }}
+
+    #added-list {{
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      scrollbar-width: thin;
+      scrollbar-color: #2a2a4a transparent;
+    }}
+
+    .added-row {{
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.7rem;
+      border-radius: 8px;
+      background: #1b1b2e;
+      border: 1px solid transparent;
+    }}
+
+    .added-row .info {{ flex: 1; min-width: 0; }}
+
+    .added-row .s-title {{
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #fffffe;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+
+    .added-row .s-artist {{
+      font-size: 0.68rem;
+      color: #6a6a8a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+
+    .btn-remove {{
+      background: none;
+      border: none;
+      color: #3a3a5a;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }}
+
+    .btn-remove:hover {{ color: #e45858; filter: none; }}
 
     /* ── Middle panel: picker ── */
     #main {{
@@ -581,7 +693,15 @@ def generate_html(songs: list[dict]) -> str:
 </head>
 <body>
   <div id="layout">
-    <div id="empty"></div>
+    <div id="add-panel">
+      <div id="add-form">
+        <h2>Add a Song</h2>
+        <input id="add-url" type="url" placeholder="Paste a tab4u or Ultimate Guitar link…" />
+        <button id="btn-add" onclick="addSong()">Add Song</button>
+        <div id="add-status"></div>
+        <div id="added-list"></div>
+      </div>
+    </div>
     <div id="main">
       <h1>🎸 Random Song Picker</h1>
 
@@ -621,6 +741,101 @@ def generate_html(songs: list[dict]) -> str:
     let pickCount  = 0;
 
     const collator = new Intl.Collator(undefined, {{ sensitivity: 'base' }});
+
+    // ── Manually added songs (persisted in localStorage) ──
+    const STORAGE_KEY = 'songpicker_added';
+    let extraSongs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    songs.push(...extraSongs);
+
+    function saveExtra() {{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(extraSongs));
+    }}
+
+    function parseUrl(raw) {{
+      raw = raw.trim();
+      try {{ new URL(raw); }} catch {{ return null; }}
+
+      // Tab4u: https://www.tab4u.com/tabs/songs/74165_Artist_-_Title.html
+      const t4u = raw.match(/tab4u\.com\/tabs\/songs\/([^?#]+\.html)/i);
+      if (t4u) {{
+        const filename = decodeURIComponent(t4u[1].replace(/\+/g, ' ')).replace(/\.html$/, '');
+        let artist = 'Unknown', title = filename;
+        if (filename.includes('_-_')) {{
+          const [left, right] = filename.split('_-_');
+          artist = left.replace(/^\d+_/, '').replace(/_/g, ' ').trim();
+          title  = right.replace(/_/g, ' ').trim();
+        }}
+        return {{ title, artist, url: raw, source: 'Tab4u', lang: 'he' }};
+      }}
+
+      // UG: https://tabs.ultimate-guitar.com/tab/artist/title-type-id
+      const ug = raw.match(/ultimate-guitar\.com\/tab\/([^/?#]+)\/([^/?#]+)/i);
+      if (ug) {{
+        const artist = ug[1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const parts  = ug[2].split('-');
+        if (parts.length >= 2 && /^\d+$/.test(parts[parts.length - 1]))
+          parts.splice(-2);   // strip type + id
+        const title = parts.join(' ').replace(/\b\w/g, c => c.toUpperCase());
+        return {{ title, artist, url: raw, source: 'Ultimate Guitar', lang: 'en' }};
+      }}
+
+      return null;
+    }}
+
+    function setStatus(msg, ok) {{
+      const el = document.getElementById('add-status');
+      el.textContent = msg;
+      el.style.color = ok ? '#4caf8a' : '#e45858';
+    }}
+
+    function addSong() {{
+      const input = document.getElementById('add-url');
+      const song  = parseUrl(input.value);
+      if (!song) {{ setStatus('Unrecognised link — paste a tab4u or UG URL.', false); return; }}
+      if (songs.find(s => s.url === song.url)) {{ setStatus('Already in the list.', false); return; }}
+      songs.push(song);
+      extraSongs.push(song);
+      saveExtra();
+      input.value = '';
+      setStatus(`Added: ${{song.title}}`, true);
+      renderFiltered();
+      renderAddedList();
+    }}
+
+    function removeExtra(url) {{
+      extraSongs = extraSongs.filter(s => s.url !== url);
+      const idx  = songs.findIndex(s => s.url === url);
+      if (idx !== -1) songs.splice(idx, 1);
+      saveExtra();
+      renderFiltered();
+      renderAddedList();
+    }}
+
+    function renderAddedList() {{
+      const list = document.getElementById('added-list');
+      list.innerHTML = '';
+      if (!extraSongs.length) return;
+      extraSongs.forEach(song => {{
+        const row = document.createElement('div');
+        row.className = 'added-row';
+        const flag = song.lang === 'he' ? '🇮🇱' : '🇺🇸';
+        row.innerHTML = `
+          <span class="info">
+            <span class="s-title">${{flag}} ${{song.title}}</span>
+            <span class="s-artist">${{song.artist}}</span>
+          </span>
+          <button class="btn-remove" title="Remove">✕</button>`;
+        row.querySelector('.btn-remove').onclick = () => removeExtra(song.url);
+        list.appendChild(row);
+      }});
+    }}
+
+    // Allow pressing Enter in the URL input to add
+    document.getElementById('add-url').addEventListener('keydown', e => {{
+      if (e.code === 'Enter') addSong();
+    }});
+
+    renderAddedList();
 
     function showSong(song) {{
       const card = document.getElementById('card');
