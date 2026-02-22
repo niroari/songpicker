@@ -742,7 +742,7 @@ if __name__ == "__main__":
 
     print(f"\nTotal songs collected: {len(songs)}")
 
-    out = os.path.join(os.path.dirname(__file__), "random_song.html")
+    out = os.path.join(os.path.dirname(__file__), "index.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(generate_html(songs))
 
