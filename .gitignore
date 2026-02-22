@@ -1,0 +1,21 @@
+# Browser-saved HTML files (personal data, local only)
+ug_favorites.html
+ug_favorites_files/
+tab4u_mysongs.html
+getMySongs.html
+getMySongs_files/
+
+# Debug files
+tab4u_ajax_debug.html
+tab4u_chordsbook_debug.html
+ug_debug.html
+ug_debug.json
+
+# Old preview
+random_song_preview.html
+
+# Files saved with default browser names
+(1)*
+
+# macOS
+.DS_Store
